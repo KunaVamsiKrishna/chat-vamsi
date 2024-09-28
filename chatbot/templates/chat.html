@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medi Care Chat</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            font-family: 'Poppins', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            overflow: hidden;
+            position: relative; /* Ensure the body is positioned relative */
+        }
+
+        .video-bg {
+            position: fixed; /* Change to fixed for better performance */
+            top: 50%; /* Center the video */
+            left: 50%;
+            width: 100vw; /* Use viewport width */
+            height: 100vh; /* Use viewport height */
+            min-width: 100%; /* Prevent cropping */
+            min-height: 100%; /* Prevent cropping */
+            object-fit: cover; /* Maintain aspect ratio */
+            transform: translate(-50%, -50%); /* Center the video */
+            z-index: -1; /* Keep the video behind the content */
+        }
+
+        .container {
+            width: 90%;
+            max-width: 600px;
+            background-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .header {
+            background-color: rgba(44, 110, 73, 0.8);
+            padding: 20px;
+            text-align: center;
+            color: white;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .chat-window {
+            padding: 20px;
+            height: 300px;
+            width: 500px;
+            overflow-y: auto;
+            color: white;
+        }
+
+        .message {
+            margin: 10px 0;
+            opacity: 0;
+            transition: opacity 0.5s ease-in;
+            display: flex;
+            align-items: center;
+            max-width: 80%;
+        }
+
+        .user-message {
+            justify-content: flex-end; /* Align user message to the right */
+        }
+
+        .bot-response {
+            justify-content: flex-start; /* Align bot response to the left */
+        }
+
+        .message-content {
+            padding: 8px;
+            border-radius: 8px;
+            display: inline-block;
+            max-width: 100%;
+            position: relative;
+        }
+
+        .user-message .message-content {
+            background-color: rgba(50, 150, 100, 0.9);
+            margin-left: 10px;
+        }
+
+        .bot-response .message-content {
+            background-color: rgba(30, 140, 90, 0.9);
+            margin-right: 10px;
+        }
+
+        .typing-indicator {
+            text-align: left;
+            color: rgba(50, 150, 100, 0.9);
+            padding: 8px;
+            display: inline-block;
+            max-width: 80%;
+        }
+
+        .input-area {
+            display: flex;
+            padding: 10px;
+            background-color: rgba(255, 255, 255, 0.8);
+            border-top: 1px solid #ccc;
+        }
+
+        .input-area input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        .input-area button {
+            padding: 10px 20px;
+            background-color: rgba(44, 110, 73, 0.8);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            margin-left: 10px;
+            border-radius: 4px;
+        }
+
+        .icon {
+            margin-right: 8px;
+            font-size: 20px; /* Adjust icon size */
+            color: black; /* Set the icon color to black */
+        }
+    </style>
+</head>
+<body>
+    <video class="video-bg" autoplay muted loop>
+        <source src="{{ url_for('static', filename='videos/bg-video.mp4') }}" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
+    <div class="container">
+        <div class="header">
+            <h1>Chat with Medi Care</h1>
+        </div>
+
+        <div class="chat-window" id="chat-window">
+            <!-- Chat messages will appear here -->
+        </div>
+        
+        <div class="input-area">
+            <input type="text" id="user-input" placeholder="Ask me anything about natural remedies..." />
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        async function sendMessage() {
+            const userInput = document.getElementById('user-input').value;
+            const chatWindow = document.getElementById('chat-window');
+
+            if (userInput.trim() !== "") {
+                // Append user message
+                const userMessage = document.createElement('div');
+                userMessage.className = 'message user-message';
+                userMessage.innerHTML = `
+                    <i class="fas fa-user icon"></i>
+                    <div class="message-content">${userInput}</div>
+                `;
+                chatWindow.appendChild(userMessage);
+                fadeIn(userMessage);
+
+                // Clear the input field after sending the message
+                document.getElementById('user-input').value = '';
+
+                // Automatically scroll to the bottom of the chat window
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+
+                // Show typing indicator for the bot
+                const typingIndicator = document.createElement('div');
+                typingIndicator.className = 'typing-indicator';
+                typingIndicator.innerText = 'Bot is typing...';
+                chatWindow.appendChild(typingIndicator);
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+
+                // Simulate bot response delay
+                setTimeout(async () => {
+                    // Send the user's message to the Flask backend
+                    const response = await fetch('/get_remedy', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ question: userInput })
+                    });
+
+                    const data = await response.json();
+
+                    // Remove typing indicator
+                    chatWindow.removeChild(typingIndicator);
+
+                    // Append bot response
+                    const botResponse = document.createElement('div');
+                    botResponse.className = 'message bot-response';
+                    botResponse.innerHTML = `
+                        <i class="fas fa-robot icon"></i>
+                        <div class="message-content">
+                            <strong>Remedy:</strong> ${data.remedy}<br>
+                            <strong>Preparation:</strong> ${data.preparation}<br>
+                            <strong>Use:</strong> ${data.use}
+                        </div>
+                    `;
+                    chatWindow.appendChild(botResponse);
+                    fadeIn(botResponse);
+
+                    // Automatically scroll to the bottom of the chat window
+                    chatWindow.scrollTop = chatWindow.scrollHeight;
+                }, 1500); // Adjust the delay as needed
+            }
+        }
+
+        function fadeIn(element) {
+            element.style.opacity = 0;
+            let opacity = 0;
+            const interval = setInterval(() => {
+                opacity += 0.05;
+                if (opacity >= 1) {
+                    clearInterval(interval);
+                }
+                element.style.opacity = opacity;
+            }, 50);
+        }
+    </script>
+</body>
+</html>
